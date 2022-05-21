@@ -1,0 +1,60 @@
+version: '3.9'
+
+services:
+  mysql_db:
+    image: mysql:latest
+    container_name: mysql_db
+    ports:
+      - '3306:3306'
+    volumes:
+      - ./db/sql/scripts:/docker-entrypoint-initdb.d/
+      - ./db/sql/data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/mysql_root_password
+      - MYSQL_DATABASE=hw4
+      - MYSQL_ROOT_HOST=%
+    secrets:
+      - mysql_root_password
+
+  redis_db_s:
+    image: redis:alpine
+    container_name: redis_db
+    secrets:
+      - REDIS_ACL_SECRET
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./db/cache/redis.conf:/usr/local/etc/redis/redis.conf
+
+
+  nodeApi:
+    image: kenni26/nclouds_hw4_api
+    container_name: node_api
+    ports:
+      - '3500:3500'
+    secrets:
+      - REDIS_PASSWORD
+      - mysql_root_password
+    links:
+      - mysql_db
+      - redis_db_s
+    depends_on:
+      - mysql_db
+      - redis_db_s
+  
+  web_app:
+    image: kenni26/nclouds_hw4_web_app
+    container_name: web_app
+    ports:
+      - "8080:80"
+    links:
+      - nodeApi
+      - mysql_db
+      - redis_db_s
+
+secrets:
+  mysql_root_password:
+    file: ./db/sql/db_root_password.txt
+  REDIS_ACL_SECRET:
+    file: ./db/cache/users.acl
+  REDIS_PASSWORD:
+    file: ./db/cache/redisPsw.txt
